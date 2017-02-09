@@ -6,9 +6,6 @@ import socket
 
 from raid_utils import zfs, smart, ircu
 
-
-from secrets import DB_HOST, DB_USER, DB_PASSWD, DB_NAME
-
 parser = argparse.ArgumentParser(description='This fetches information about a local zfs pool.')
 parser.add_argument('--pool', action='store', default='tank', help='name of the pool [default: tank]')
 parser.add_argument('--ircu', action='store', default=None, help='name of the ircu bin [sas2ircu or sas3ircu, default: None]')
@@ -49,8 +46,9 @@ else:
         })
 
 if args.create or args.insert:
-    # open connection and write to database
     import MySQLdb
+    from secrets import DB_HOST, DB_USER, DB_PASSWD, DB_NAME
+
     conn = MySQLdb.connect(host=DB_HOST, user=DB_USER, passwd=DB_PASSWD, db=DB_NAME)
     cur = conn.cursor()
 
