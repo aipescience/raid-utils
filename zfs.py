@@ -4,8 +4,6 @@ import datetime
 import json
 import socket
 
-import MySQLdb
-
 from raid_utils import zfs, smart, ircu
 
 
@@ -52,6 +50,7 @@ else:
 
 if args.create or args.insert:
     # open connection and write to database
+    import MySQLdb
     conn = MySQLdb.connect(host=DB_HOST, user=DB_USER, passwd=DB_PASSWD, db=DB_NAME)
     cur = conn.cursor()
 
