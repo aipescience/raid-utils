@@ -108,30 +108,30 @@ def fetch_pool_status(pool_name):
     }
     disks = []
 
-    zpool_status_output = subprocess.check_output('zpool status %s' % pool_name, shell=True)
+    zpool_status_output = subprocess.check_output('zpool status -P %s' % pool_name, shell=True)
     for line in zpool_status_output.split('\n'):
         if line.startswith('  scan:'):
             pool['scan'] = line.split(':')[1].strip()
 
-        elif line.startswith('\t' + pool_name):
-            pool_config = line.split()
-            pool['state'] = pool_config[1]
-            pool['read_errors'] = int(pool_config[2])
-            pool['write_errors'] = int(pool_config[3])
-            pool['cksum_errors'] = int(pool_config[4])
+        elif line.startswith('\t'):
+            line_split = line.split()
 
-        elif line.startswith('\t    '):
-            disk_config = line.split()
-            dev_by_id = '/dev/disk/by-id/' + disk_config[0]
+            if line_split[0] == pool_name:
+                pool['state'] = line_split[1]
+                pool['read_errors'] = int(line_split[2])
+                pool['write_errors'] = int(line_split[3])
+                pool['cksum_errors'] = int(line_split[4])
 
-            disks.append({
-                'pool_name': pool_name,
-                'dev': os.path.realpath(dev_by_id),
-                'dev_by_id': dev_by_id,
-                'state': disk_config[1],
-                'read_errors': int(pool_config[2]),
-                'write_errors': int(pool_config[3]),
-                'cksum_errors': int(pool_config[4])
-            })
+            if line_split[0].strip().startswith('/dev/disk/by-id/'):
+                dev_by_id = line_split[0].strip().replace('-part1', '')
+                disks.append({
+                    'pool_name': pool_name,
+                    'dev': os.path.realpath(dev_by_id),
+                    'dev_by_id': dev_by_id,
+                    'state': line_split[1],
+                    'read_errors': int(line_split[2]),
+                    'write_errors': int(line_split[3]),
+                    'cksum_errors': int(line_split[4])
+                })
 
     return pool, disks
