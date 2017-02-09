@@ -7,25 +7,17 @@ import socket
 from raid_utils import zfs, smart, ircu
 
 parser = argparse.ArgumentParser(description='This fetches information about a local zfs pool.')
-parser.add_argument('--pool', action='store', default='tank', help='name of the pool [default: tank]')
+parser.add_argument('--pool', action='store', default=None, help='name of the pool [default: all]')
 parser.add_argument('--ircu', action='store', default=None, help='name of the ircu bin [sas2ircu or sas3ircu, default: None]')
 parser.add_argument('--create', action='store_true', help='create database tables')
 parser.add_argument('--insert', action='store_true', help='insert into database')
 args = parser.parse_args()
 
-pool = {
-    'timestamp': datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-    'host': socket.gethostname(),
-    'pool_name': args.pool
-}
+timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+host = socket.gethostname()
 
 # get the pool and disk status
-pool, disks = zfs.fetch_pool_status(args.pool)
-pool.update({
-    'timestamp': datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-    'host': socket.gethostname(),
-    'pool_name': args.pool
-})
+pools, disks = zfs.fetch_data(args.pool)
 
 # parse the output of `smartctl`
 for disk in disks:
@@ -57,20 +49,26 @@ if args.create or args.insert:
         cur.execute(zfs.disk_create_stmt)
 
     if args.insert:
-        cur.execute(zfs.pool_insert_stmt, pool)
-        pool_id = cur.lastrowid
+        ids = {}
+        for pool in pools:
+            pool.update({
+                'timestamp': timestamp,
+                'host': host
+            })
+            cur.execute(zfs.pool_insert_stmt, pool)
+            ids[pool['pool_name']] = cur.lastrowid
 
         for disk in disks:
             disk.update({
-                'pool_id': pool_id,
-                'timestamp': pool['timestamp'],
-                'host': pool['host']
+                'zfs_pool_id': ids[disk['pool_name']],
+                'timestamp': timestamp,
+                'host': host
             })
             cur.execute(zfs.disk_insert_stmt, disk)
     conn.commit()
     conn.close()
 else:
     print json.dumps({
-        'pool': pool,
+        'pools': pools,
         'disks': disks
     }, sort_keys=True, indent=4)

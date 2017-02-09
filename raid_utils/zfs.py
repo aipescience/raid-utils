@@ -3,13 +3,17 @@ import subprocess
 
 
 pool_create_stmt = '''
-    CREATE TABLE zfs_pools (
+    CREATE TABLE zfs_pool (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `timestamp` DATETIME,
         `host` VARCHAR(64),
         `pool_name` VARCHAR(16),
-        `state` VARCHAR(16),
+        `size` VARCHAR(16),
+        `alloc` VARCHAR(16),
+        `free` VARCHAR(16),
+        `health` VARCHAR(16),
         `scan` VARCHAR(256),
+        `state` VARCHAR(16),
         `write_errors` INT,
         `read_errors` INT,
         `cksum_errors` INT
@@ -17,9 +21,9 @@ pool_create_stmt = '''
 '''
 
 disk_create_stmt = '''
-    CREATE TABLE zfs_disks (
+    CREATE TABLE zfs_disk (
         `id`INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        `pool_id` INT NOT NULL,
+        `zfs_pool_id` INT NOT NULL,
         `timestamp` DATETIME,
         `host` VARCHAR(64),
         `pool_name` VARCHAR(16),
@@ -40,21 +44,17 @@ disk_create_stmt = '''
 '''
 
 pool_insert_stmt = '''
-    INSERT INTO zfs_pools (
-        `timestamp`,
-        `host`,
-        `pool_name`,
-        `state`,
-        `scan`,
-        `write_errors`,
-        `read_errors`,
-        `cksum_errors`
-    ) VALUES (
+    INSERT INTO zfs_pool VALUES (
+        NULL,
         %(timestamp)s,
         %(host)s,
         %(pool_name)s,
-        %(state)s,
+        %(size)s,
+        %(alloc)s,
+        %(free)s,
+        %(health)s,
         %(scan)s,
+        %(state)s,
         %(write_errors)s,
         %(read_errors)s,
         %(cksum_errors)s
@@ -62,26 +62,9 @@ pool_insert_stmt = '''
 '''
 
 disk_insert_stmt = '''
-    INSERT INTO zfs_disks (
-        `pool_id`,
-        `timestamp`,
-        `host`,
-        `pool_name`,
-        `dev`,
-        `dev_by_id`,
-        `model`,
-        `sn`,
-        `size`,
-        `controller`,
-        `enclosure`,
-        `slot`,
-        `state`,
-        `write_errors`,
-        `read_errors`,
-        `cksum_errors`,
-        `smart_health`
-    ) VALUES (
-        %(pool_id)s,
+    INSERT INTO zfs_disk VALUES (
+        NULL,
+        %(zfs_pool_id)s,
         %(timestamp)s,
         %(host)s,
         %(pool_name)s,
@@ -102,36 +85,51 @@ disk_insert_stmt = '''
 '''
 
 
-def fetch_pool_status(pool_name):
-    pool = {
-        'pool_name': pool_name
-    }
+def fetch_data(pool_name=None):
+    pools = []
     disks = []
 
-    zpool_status_output = subprocess.check_output('zpool status -P %s' % pool_name, shell=True)
-    for line in zpool_status_output.split('\n'):
-        if line.startswith('  scan:'):
-            pool['scan'] = line.split(':')[1].strip()
+    if pool_name:
+        zpool_list_output = subprocess.check_output('zpool list %s' % pool_name, shell=True)
+    else:
+        zpool_list_output = subprocess.check_output('zpool list', shell=True)
 
-        elif line.startswith('\t'):
-            line_split = line.split()
+    for line in zpool_list_output.split('\n'):
+        line_split = line.split()
+        if line and line_split[0] != 'NAME':
+            pools.append({
+                'pool_name': line_split[0],
+                'size': line_split[1],
+                'alloc': line_split[2],
+                'free': line_split[3],
+                'health': line_split[8]
+            })
 
-            if line_split[0] == pool_name:
-                pool['state'] = line_split[1]
-                pool['read_errors'] = int(line_split[2])
-                pool['write_errors'] = int(line_split[3])
-                pool['cksum_errors'] = int(line_split[4])
+    for pool in pools:
+        zpool_status_output = subprocess.check_output('zpool status -P %s' % pool['pool_name'], shell=True)
+        for line in zpool_status_output.split('\n'):
+            if line.startswith('  scan:'):
+                pool['scan'] = line.split(':')[1].strip()
 
-            if line_split[0].strip().startswith('/dev/disk/by-id/'):
-                dev_by_id = line_split[0].strip().replace('-part1', '')
-                disks.append({
-                    'pool_name': pool_name,
-                    'dev': os.path.realpath(dev_by_id),
-                    'dev_by_id': dev_by_id,
-                    'state': line_split[1],
-                    'read_errors': int(line_split[2]),
-                    'write_errors': int(line_split[3]),
-                    'cksum_errors': int(line_split[4])
-                })
+            elif line.startswith('\t'):
+                line_split = line.split()
 
-    return pool, disks
+                if line_split[0] == pool['pool_name']:
+                    pool['state'] = line_split[1]
+                    pool['read_errors'] = int(line_split[2])
+                    pool['write_errors'] = int(line_split[3])
+                    pool['cksum_errors'] = int(line_split[4])
+
+                if line_split[0].strip().startswith('/dev/disk/by-id/'):
+                    dev_by_id = line_split[0].strip().replace('-part1', '')
+                    disks.append({
+                        'pool_name': pool['pool_name'],
+                        'dev': os.path.realpath(dev_by_id),
+                        'dev_by_id': dev_by_id,
+                        'state': line_split[1],
+                        'read_errors': int(line_split[2]),
+                        'write_errors': int(line_split[3]),
+                        'cksum_errors': int(line_split[4])
+                    })
+
+    return pools, disks
