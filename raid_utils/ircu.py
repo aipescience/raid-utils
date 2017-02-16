@@ -1,6 +1,16 @@
 import subprocess
 
 
+def fetch_ircu_bin():
+    lspci_output = subprocess.check_output('lspci | grep \'Serial Attached SCSI controller\'', shell=True)
+    if 'SAS-2' in lspci_output:
+        return 'sas2ircu'
+    elif 'SAS-3' in lspci_output:
+        return 'sas3ircu'
+    else:
+        return None
+
+
 def fetch_ircu_data(ircu_bin):
     drives = {}
     controller_ids = []
@@ -34,3 +44,13 @@ def fetch_ircu_data(ircu_bin):
                     }
 
     return drives
+
+
+def locate_disk(ircu_bin, controller, enclosure, slot, operation):
+    subprocess.check_output('%(ircu_bin)s %(controller)s LOCATE %(enclosure)s:%(slot)s %(operation)s' % {
+        'ircu_bin': ircu_bin,
+        'controller': controller,
+        'enclosure': enclosure,
+        'slot': slot,
+        'operation': operation
+    }, shell=True)

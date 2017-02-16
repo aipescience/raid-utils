@@ -8,7 +8,6 @@ from raid_utils import zfs, smart, ircu
 
 parser = argparse.ArgumentParser(description='This fetches information about a local zfs pool.')
 parser.add_argument('--pool', action='store', default=None, help='name of the pool [default: all]')
-parser.add_argument('--ircu', action='store', default=None, help='name of the ircu bin [sas2ircu or sas3ircu, default: None]')
 parser.add_argument('--create', action='store_true', help='create database tables')
 parser.add_argument('--insert', action='store_true', help='insert into database')
 args = parser.parse_args()
@@ -25,8 +24,9 @@ for disk in disks:
     disk.update(smart_data)
 
 # parse the output of `sas2ircu` or `sas3ircu`
-if args.ircu:
-    ircu_data = ircu.fetch_ircu_data(args.ircu)
+ircu_bin = ircu.fetch_ircu_bin()
+if ircu_bin:
+    ircu_data = ircu.fetch_ircu_data(ircu_bin)
     for disk in disks:
         disk.update(ircu_data[disk['sn']])
 else:
