@@ -2,7 +2,10 @@ import subprocess
 
 
 def fetch_ircu_bin():
-    lspci_output = subprocess.check_output('lspci | grep \'Serial Attached SCSI controller\'', shell=True)
+    try:
+        lspci_output = subprocess.check_output('lspci | grep \'Serial Attached SCSI controller\'', shell=True)
+    except subprocess.CalledProcessError:
+        return None
     if 'SAS-2' in lspci_output:
         return 'sas2ircu'
     elif 'SAS-3' in lspci_output:
