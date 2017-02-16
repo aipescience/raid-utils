@@ -27,10 +27,10 @@ for disk in disks:
 ircu_bin = ircu.fetch_ircu_bin()
 if ircu_bin:
     ircu_data = ircu.fetch_ircu_data(ircu_bin)
-    for disk in disks:
+for disk in disks:
+    if ircu_bin and 'sn' in disk and disk['sn'] in ircu_data:
         disk.update(ircu_data[disk['sn']])
-else:
-    for disk in disks:
+    else:
         disk.update({
             'controller': None,
             'enclosure': None,
