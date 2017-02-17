@@ -16,7 +16,7 @@ timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 host = socket.gethostname()
 
 # get the pool and disk status
-pools, disks = zfs.fetch_data(args.pool)
+pools, disks = zfs.fetch_data(timestamp, host, args.pool)
 
 # parse the output of `smartctl`
 for disk in disks:
@@ -45,19 +45,11 @@ if args.create or args.insert:
     if args.insert:
         ids = {}
         for pool in pools:
-            pool.update({
-                'timestamp': timestamp,
-                'host': host
-            })
             cur.execute(zfs.pool_insert_stmt, pool)
             ids[pool['pool_name']] = cur.lastrowid
 
         for disk in disks:
-            disk.update({
-                'zfs_pool_id': ids[disk['pool_name']],
-                'timestamp': timestamp,
-                'host': host
-            })
+            disk['zfs_pool_id'] = ids[disk['pool_name']]
             cur.execute(zfs.disk_insert_stmt, disk)
     conn.commit()
     conn.close()

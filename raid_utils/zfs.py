@@ -85,7 +85,7 @@ disk_insert_stmt = '''
 '''
 
 
-def fetch_data(pool_name=None):
+def fetch_data(timestamp, host, pool_name=None):
     pools = []
     disks = []
 
@@ -98,8 +98,8 @@ def fetch_data(pool_name=None):
         line_split = line.split()
         if line and line_split[0] != 'NAME':
             pools.append({
-                'timestamp': None,
-                'host': None,
+                'timestamp': timestamp,
+                'host': host,
                 'pool_name': line_split[0],
                 'size': line_split[1],
                 'alloc': line_split[2],
@@ -130,8 +130,8 @@ def fetch_data(pool_name=None):
                     dev_by_id = line_split[0].strip().replace('-part1', '')
                     disks.append({
                         'zfs_pool_id': None,
-                        'timestamp': None,
-                        'host': None,
+                        'timestamp': timestamp,
+                        'host': host,
                         'pool_name': pool['pool_name'],
                         'dev': os.path.realpath(dev_by_id),
                         'dev_by_id': dev_by_id,
