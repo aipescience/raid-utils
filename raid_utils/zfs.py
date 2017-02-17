@@ -98,11 +98,17 @@ def fetch_data(pool_name=None):
         line_split = line.split()
         if line and line_split[0] != 'NAME':
             pools.append({
+                'timestamp': None,
+                'host': None,
                 'pool_name': line_split[0],
                 'size': line_split[1],
                 'alloc': line_split[2],
                 'free': line_split[3],
-                'health': line_split[8]
+                'health': line_split[8],
+                'state': None,
+                'write_errors': None,
+                'read_errors': None,
+                'cksum_errors': None
             })
 
     for pool in pools:
@@ -123,13 +129,23 @@ def fetch_data(pool_name=None):
                 if line_split[0].strip().startswith('/dev/disk/by-id/'):
                     dev_by_id = line_split[0].strip().replace('-part1', '')
                     disks.append({
+                        'zfs_pool_id': None,
+                        'timestamp': None,
+                        'host': None,
                         'pool_name': pool['pool_name'],
                         'dev': os.path.realpath(dev_by_id),
                         'dev_by_id': dev_by_id,
+                        'model': None,
+                        'sn': None,
+                        'size': None,
+                        'controller': None,
+                        'enclosure': None,
+                        'slot': None,
                         'state': line_split[1],
                         'read_errors': int(line_split[2]),
                         'write_errors': int(line_split[3]),
-                        'cksum_errors': int(line_split[4])
+                        'cksum_errors': int(line_split[4]),
+                        'smart_health': None
                     })
 
     return pools, disks
